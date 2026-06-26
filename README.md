@@ -36,22 +36,80 @@
 ## 🗺️ 路线图 Roadmap
 
 ```
-Phase 0 (当前): PWA 原型 → 浏览器验证核心交互
-Phase 1:         Flutter 正式版 → iOS/Android 端侧推理
-Phase 2:         声纹识别 → 自动区分说话人
+Phase 0 (当前): PWA 原型 → 浏览器验证核心交互  ✅ 已搭建，测试中
+Phase 1:         Flutter 正式版 → iOS/Android 端侧推理  📋 已规划
+Phase 2:         声纹识别 → 自动区分说话人  📋 已规划
 ```
+
+---
+
+## 📊 当前进度 Current Status
+
+### ✅ 已完成
+
+| 事项 | 说明 |
+|------|------|
+| 项目文档 | VISION.md / PRD.md / TECHNICAL_ROADMAP.md |
+| PWA 原型 | 纯 HTML/CSS/JS，Web Speech API 语音识别 |
+| GitHub Pages 部署 | https://ruipls.github.io/grandpas-ears/ |
+| 核心交互 | 实时识别 → 聊天气泡展示、A/B 说话人切换 |
+| 大字体 / 暗色模式 | 一键切换，localStorage 记忆 |
+| PWA 安装 | Service Worker 离线缓存，可添加到主屏幕 |
+| 对话持久化 | localStorage 存储，刷新不丢失 |
+
+### 🐛 已知问题
+
+| 问题 | 状态 | 说明 |
+|------|------|------|
+| **iOS Safari 说完一句话出现两个气泡** | 🔴 待修复 | iOS Safari Web Speech API 的 `isFinal` 不可靠 + `onend` 重复触发。已尝试多层去重（storage/UI/speech.js 层面），问题仍未彻底解决。详见下方 Known Issues |
+| 文字偶有重复拼接 | 🟡 部分修复 | `final =` 替代 `final +=` 后有所改善 |
+| Chrome 部分模型需联网 | 🟡 浏览器限制 | Phase 1 用 whisper.cpp 彻底解决 |
+
+### 🔜 下一步
+
+1. **修复双重气泡 Bug**：可能需要用 `requestAnimationFrame` 节流或完全重写事件处理
+2. **Phase 1 启动**：PWA 核心交互验证通过后，启动 Flutter + whisper.cpp 端侧推理
+
+---
+
+## 🐛 Known Issues
+
+### iOS Safari 双重气泡 (Duplicate Bubbles)
+
+**现象**：在 iOS Safari 上，说完一句话后出现两个内容相同的气泡。
+
+**根因分析**：iOS Safari 的 Web Speech API 存在已知缺陷：
+- `SpeechRecognition.isFinal` 经常永远返回 `false`
+- `onend` 事件触发时，`onresult` 的 interim 文本被重复作为 final 发送
+- `continuous: true` 模式下事件模型复杂，多个 result 交叉触发
+
+**已尝试的修复**（均未完全解决）：
+- `continuous: false` + 手动重启 ✓(部分改善)
+- `onend` 中强制 finalize ✓(部分改善)
+- storage 层去重 (3秒窗口)
+- UI 层去重 (ID 检查)
+- speech.js 层去重 (lastSentText 追踪)
+
+**可能的下一步**：
+- 使用 `requestAnimationFrame` 合并同一帧内的多次渲染
+- 改用 `continuous: false` + 每次重启前完全清理状态
+- 考虑用 MediaRecorder + 后端 ASR 替代 Web Speech API (成本更高)
+- Phase 1 迁移到 whisper.cpp 后自然解决（不再依赖 Web Speech API）
 
 ---
 
 ## 🚀 快速开始 Quick Start
 
-### Phase 0: PWA 原型
+### 在线体验 (推荐)
+
+📱 iPhone Safari 打开: **https://ruipls.github.io/grandpas-ears/**
+
+### 本地开发
 
 ```bash
-cd pwa-prototype
-npx live-server --port=3000
+cd docs
+python3 -m http.server 3000
 # 浏览器打开 http://localhost:3000
-# 或手机访问 http://<你的电脑IP>:3000
 ```
 
 > 需要 Chrome 或 Safari 浏览器。iOS Safari 14.5+ 支持。
