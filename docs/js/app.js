@@ -168,9 +168,11 @@ const App = (() => {
         UI.appendBubble(msg);
       }
       UI.scrollToBottom();
+      // final 优先: 跳过后续 interim 处理, 避免重复气泡
+      return;
     }
 
-    // 处理中间结果: Web Speech API 的 interim 已是完整文本, 直接更新/创建气泡
+    // 处理中间结果
     if (interim && interim.trim()) {
       if (interimMsgId) {
         const msg = Storage.updateLastMessage(interim.trim(), true);
