@@ -1,7 +1,7 @@
 // Service Worker for Grandpa's Ears PWA
 // 缓存静态资源，支持离线访问
 
-const CACHE_NAME = 'grandpasears-v1';
+const CACHE_NAME = 'grandpasears-v2';
 const ASSETS = [
   '.',
   'index.html',
