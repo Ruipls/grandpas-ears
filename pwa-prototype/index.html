@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#1565C0">
+  <meta name="description" content="爷爷的耳朵 - 实时语音转文字，让每一次对话都被看见">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="爷爷的耳朵">
+
+  <title>爷爷的耳朵 Grandpa's Ears</title>
+
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="assets/icon-192.png">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- ===== 主容器 ===== -->
+  <div class="app-container" id="appContainer">
+
+    <!-- 顶部状态栏 -->
+    <header class="app-header">
+      <h1 class="app-title">👂 爷爷的耳朵</h1>
+      <div class="header-actions">
+        <button class="icon-btn" id="btnFontSize" aria-label="切换字号" title="切换字号">
+          <span class="icon">🔤</span>
+        </button>
+        <button class="icon-btn" id="btnDarkMode" aria-label="深色模式" title="深色模式">
+          <span class="icon">🌙</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- 对话区域 -->
+    <main class="conversation-area" id="conversationArea" aria-live="polite" aria-label="对话内容">
+      <!-- 欢迎提示 -->
+      <div class="welcome-message" id="welcomeMessage">
+        <div class="welcome-icon">👂</div>
+        <p class="welcome-text">点击下方 <strong>"开始聆听"</strong> 开始对话</p>
+        <p class="welcome-sub">将手机放在对话场景中，<br>语音会实时转化为文字显示在这里</p>
+        <p class="welcome-sub-en">Place your phone nearby.<br>Speech will appear as captions in real time.</p>
+      </div>
+    </main>
+
+    <!-- 识别状态指示器 -->
+    <div class="status-bar" id="statusBar">
+      <span class="status-dot" id="statusDot"></span>
+      <span class="status-text" id="statusText">准备就绪 Ready</span>
+    </div>
+
+    <!-- 底部操作栏 -->
+    <footer class="action-bar" id="actionBar">
+      <button class="speaker-btn speaker-a active" id="btnSpeakerA" aria-label="我说话">
+        <span class="speaker-label">我说话</span>
+        <span class="speaker-emoji">🧑</span>
+      </button>
+
+      <button class="main-action-btn" id="btnStart" aria-label="开始聆听">
+        <span class="main-action-icon">🎤</span>
+        <span class="main-action-text">开始聆听</span>
+      </button>
+
+      <button class="speaker-btn speaker-b" id="btnSpeakerB" aria-label="对方说话">
+        <span class="speaker-label">对方说话</span>
+        <span class="speaker-emoji">👤</span>
+      </button>
+    </footer>
+
+    <!-- 次要操作 -->
+    <div class="secondary-actions" id="secondaryActions">
+      <button class="text-btn" id="btnClear" aria-label="清除对话">
+        🗑️ 清除对话
+      </button>
+    </div>
+  </div>
+
+  <!-- ===== 权限提示弹窗 ===== -->
+  <div class="overlay hidden" id="permissionOverlay">
+    <div class="dialog">
+      <div class="dialog-icon">🎤</div>
+      <h2 class="dialog-title">需要麦克风权限</h2>
+      <p class="dialog-text">
+        请允许浏览器使用麦克风，<br>语音数据仅在您的设备上处理，<br>不会上传到任何服务器。
+      </p>
+      <p class="dialog-text-en">
+        Please allow microphone access.<br>Speech is processed on-device only.<br>No data is ever uploaded.
+      </p>
+      <button class="primary-btn" id="btnRequestPermission">允许使用麦克风</button>
+      <button class="text-btn" id="btnDismissPermission">稍后再说</button>
+    </div>
+  </div>
+
+  <!-- ===== 浏览器不支持提示 ===== -->
+  <div class="overlay hidden" id="unsupportedOverlay">
+    <div class="dialog">
+      <div class="dialog-icon">⚠️</div>
+      <h2 class="dialog-title">浏览器不支持</h2>
+      <p class="dialog-text">
+        您的浏览器不支持语音识别功能。<br>请使用 <strong>Chrome</strong>（Android/电脑）<br>或 <strong>Safari</strong>（iPhone/iPad）。
+      </p>
+      <p class="dialog-text-en">
+        Your browser does not support speech recognition.<br>Please use <strong>Chrome</strong> or <strong>Safari</strong>.
+      </p>
+    </div>
+  </div>
+
+  <script src="js/storage.js"></script>
+  <script src="js/speech.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

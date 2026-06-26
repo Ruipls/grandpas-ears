@@ -1,0 +1,41 @@
+# Flutter
+flutter-app/build/
+flutter-app/.dart_tool/
+flutter-app/.packages
+flutter-app/.pub/
+flutter-app/.flutter-plugins
+flutter-app/.flutter-plugins-dependencies
+flutter-app/pubspec.lock
+
+# iOS
+ios/Pods/
+ios/build/
+*.xcworkspace
+xcuserdata/
+
+# Android
+android/.gradle/
+android/app/build/
+android/build/
+*.apk
+*.aab
+*.keystore
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Dependencies
+node_modules/
+.packages
+
+# Logs
+*.log
+
+# Whisper models (too large, download separately)
+*.ggml
