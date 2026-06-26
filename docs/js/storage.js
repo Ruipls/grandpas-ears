@@ -1,17 +1,14 @@
 /**
  * storage.js — Simple localStorage wrapper for conversation history
  * storage.js — 对话历史的本地存储封装
+ *
+ * 内置去重: 相同说话人+相同文字在3秒内的非interim消息视为重复，直接返回已有消息
  */
 
 const Storage = (() => {
   const STORAGE_KEY = 'grandpasears_conversation';
-  const MAX_MESSAGES = 500; // 最多保存 500 条消息
+  const MAX_MESSAGES = 500;
 
-  /**
-   * 获取所有对话消息
-   * Get all conversation messages
-   * @returns {Array<{speaker: string, text: string, time: string, isInterim?: boolean}>}
-   */
   function getMessages() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
@@ -23,114 +20,99 @@ const Storage = (() => {
     }
   }
 
-  /**
-   * 保存消息列表
-   * Save message list
-   * @param {Array} messages
-   */
   function saveMessages(messages) {
     try {
-      // 限制数量
       const trimmed = messages.slice(-MAX_MESSAGES);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed));
     } catch (e) {
-      console.warn('Storage: failed to save messages (storage full?)', e);
-      // 如果是配额满了，尝试清理旧数据
+      console.warn('Storage: failed to save messages', e);
       if (e.name === 'QuotaExceededError') {
         try {
           const half = messages.slice(-Math.floor(MAX_MESSAGES / 2));
           localStorage.setItem(STORAGE_KEY, JSON.stringify(half));
-        } catch (_) {
-          // 清理也失败，放弃
-        }
+        } catch (_) {}
       }
     }
   }
 
   /**
-   * 添加一条新消息
-   * Add a new message
-   * @param {string} speaker - 'A' | 'B' | 'system'
-   * @param {string} text
-   * @param {boolean} isInterim - 是否为中间结果
-   * @returns {object} 消息对象
+   * Add a new message. Built-in dedup: if a non-interim message with the same
+   * speaker and text was added within 3 seconds, returns the existing message.
    */
-  function addMessage(speaker, text, isInterim = false) {
-    const msg = {
-      id: Date.now() + '_' + Math.random().toString(36).substr(2, 6),
-      speaker,
-      text,
-      time: new Date().toLocaleTimeString('zh-CN', {
-        hour: '2-digit',
-        minute: '2-digit'
-      }),
-      isInterim
+  function addMessage(speaker, text, isInterim) {
+    if (isInterim === undefined) isInterim = false;
+    var messages = getMessages();
+    var now = Date.now();
+
+    // Dedup non-interim messages
+    if (!isInterim && messages.length > 0) {
+      for (var i = messages.length - 1; i >= 0; i--) {
+        var m = messages[i];
+        if (!m.isInterim && m.speaker !== 'system') {
+          if (m.speaker === speaker && m.text === text && (now - (m._ts || 0)) < 3000) {
+            return m;
+          }
+          break;
+        }
+      }
+    }
+
+    var msg = {
+      id: now + '_' + Math.random().toString(36).substr(2, 6),
+      speaker: speaker,
+      text: text,
+      time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+      isInterim: isInterim,
+      _ts: now
     };
-    const messages = getMessages();
     messages.push(msg);
     saveMessages(messages);
     return msg;
   }
 
   /**
-   * 更新最后一条消息（用于中间结果）
-   * Update the last message (for interim results)
-   * @param {string} text - 新的文字
-   * @returns {object|null} 更新后的消息或 null
+   * Update the last message in storage (for interim results)
    */
-  function updateLastMessage(text, isInterim = false) {
-    const messages = getMessages();
+  function updateLastMessage(text, isInterim) {
+    if (isInterim === undefined) isInterim = false;
+    var messages = getMessages();
     if (messages.length === 0) return null;
-
-    const last = messages[messages.length - 1];
+    var last = messages[messages.length - 1];
     last.text = text;
     last.isInterim = isInterim;
-    last.time = new Date().toLocaleTimeString('zh-CN', {
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    last.time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+    last._ts = Date.now();
     messages[messages.length - 1] = last;
     saveMessages(messages);
     return last;
   }
 
-  /**
-   * 将最后一条中间结果固化为最终消息
-   * Finalize the last interim message
-   */
   function finalizeLastMessage() {
-    const messages = getMessages();
+    var messages = getMessages();
     if (messages.length === 0) return;
-    const last = messages[messages.length - 1];
+    var last = messages[messages.length - 1];
     if (last.isInterim) {
       last.isInterim = false;
+      last._ts = Date.now();
       messages[messages.length - 1] = last;
       saveMessages(messages);
     }
   }
 
-  /**
-   * 清空所有对话
-   * Clear all conversation
-   */
   function clearAll() {
     localStorage.removeItem(STORAGE_KEY);
   }
 
-  /**
-   * 获取消息数量
-   * Get message count
-   */
   function getCount() {
     return getMessages().length;
   }
 
   return {
-    getMessages,
-    addMessage,
-    updateLastMessage,
-    finalizeLastMessage,
-    clearAll,
-    getCount
+    getMessages: getMessages,
+    addMessage: addMessage,
+    updateLastMessage: updateLastMessage,
+    finalizeLastMessage: finalizeLastMessage,
+    clearAll: clearAll,
+    getCount: getCount
   };
 })();
