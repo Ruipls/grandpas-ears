@@ -32,25 +32,32 @@ const SpeechRecognizer = (() => {
 
     const rec = new SpeechRecognition();
     rec.lang = 'zh-CN';
-    rec.continuous = false;   // 每次识别一句，说完自动结束
-    rec.interimResults = true; // 仍然显示中间结果
+    rec.continuous = false;
+    rec.interimResults = true;
     rec.maxAlternatives = 1;
+
+    // 追踪本次识别会话中最后一条 interim 文本
+    // Safari iOS 上 isFinal 经常永远为 false，需要在 onend 时手动触发 final
+    let sessionInterim = '';
 
     rec.onresult = (event) => {
       consecutiveErrors = 0;
 
-      // continuous: false 时，通常只有一个 result
       let interim = '';
       let final = '';
 
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const result = event.results[i];
+        const transcript = result[0].transcript;
         if (result.isFinal) {
-          final += result[0].transcript;
+          final += transcript;
         } else {
-          interim += result[0].transcript;
+          // 使用 = 而不是 +=，因为每个 interim result 已包含完整文本
+          interim = transcript;
         }
       }
+
+      if (interim) sessionInterim = interim;
 
       if (onResultCallback && (final || interim)) {
         onResultCallback({ final, interim });
@@ -78,15 +85,22 @@ const SpeechRecognizer = (() => {
     };
 
     rec.onend = () => {
-      // continuous: false 时，每次说完一句话 onend 就会触发
-      // 如果用户仍在聆听状态，自动重启以继续听下一句
+      // Safari iOS workaround: isFinal 经常永远为 false
+      // 当 onend 触发时，如果有 pending 的 interim 文本，手动作为 final 发送
+      if (isListening && sessionInterim && sessionInterim.trim()) {
+        if (onResultCallback) {
+          onResultCallback({ final: sessionInterim.trim(), interim: '' });
+        }
+      }
+      sessionInterim = '';
+
+      // 自动重启听下一句
       if (isListening) {
         restartTimer = setTimeout(() => {
           if (!isListening) return;
           try {
             recognition.start();
           } catch (e) {
-            // 重建实例再试
             recognition = createRecognition();
             if (recognition && isListening) {
               try { recognition.start(); } catch (_) {}
