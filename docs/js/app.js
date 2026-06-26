@@ -10,7 +10,6 @@ const App = (() => {
   // === 应用状态 ===
   let currentSpeaker = 'A'; // 'A' | 'B'
   let interimMsgId = null;  // 当前中间结果消息的 ID
-  let lastFinalText = '';  // 上一条最终结果文本，用于去重
 
   // === DOM 引用 ===
   let els = {};
@@ -151,28 +150,25 @@ const App = (() => {
   }
 
   // === 语音结果处理 ===
+  // 核心规则: 一句话只对应一个气泡
   function handleSpeechResult(result) {
     UI.hideWelcome();
 
     const { final, interim } = result;
 
-    // 处理最终结果
+    // final 优先: 一句话说完了
     if (final && final.trim()) {
       const finalText = final.trim();
 
-      // 去重: 跳过与上次完全相同的最终结果
-      if (finalText === lastFinalText) {
-        return;
-      }
-      lastFinalText = finalText;
-
       if (interimMsgId) {
-        // 已有 interim 气泡 → 更新为最终状态
-        Storage.finalizeLastMessage();
+        // 已有 interim 气泡 → 用最终文字更新并固化
+        Storage.updateLastMessage(finalText, false);
+        const updated = Storage.getMessages()[Storage.getMessages().length - 1];
+        if (updated) UI.updateBubble(interimMsgId, updated);
         UI.finalizeBubble(interimMsgId);
         interimMsgId = null;
       } else {
-        // 没有 interim → 直接创建最终消息
+        // 无 interim → 直接创建最终气泡
         const msg = Storage.addMessage(currentSpeaker, finalText, false);
         UI.appendBubble(msg);
       }
@@ -180,15 +176,15 @@ const App = (() => {
       return;
     }
 
-    // 处理中间结果
+    // interim: 正在说话中
     if (interim && interim.trim()) {
+      const interimText = interim.trim();
+
       if (interimMsgId) {
-        const msg = Storage.updateLastMessage(interim.trim(), true);
-        if (msg) {
-          UI.updateBubble(msg.id, msg);
-        }
+        const msg = Storage.updateLastMessage(interimText, true);
+        if (msg) UI.updateBubble(msg.id, msg);
       } else {
-        const msg = Storage.addMessage(currentSpeaker, interim.trim(), true);
+        const msg = Storage.addMessage(currentSpeaker, interimText, true);
         interimMsgId = msg.id;
         UI.appendBubble(msg);
       }
@@ -252,7 +248,6 @@ const App = (() => {
 
     // 重置状态
     interimMsgId = null;
-    lastFinalText = '';
     currentSpeaker = 'A';
     UI.setActiveSpeaker('A');
     UI.setMainButtonState('idle');
