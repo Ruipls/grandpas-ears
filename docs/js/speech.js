@@ -36,9 +36,9 @@ const SpeechRecognizer = (() => {
     rec.interimResults = true;
     rec.maxAlternatives = 1;
 
-    // 追踪本次识别会话中最后一条 interim 文本
-    // Safari iOS 上 isFinal 经常永远为 false，需要在 onend 时手动触发 final
+    // Safari iOS: isFinal 经常永远为 false, 需在 onend 时手动 finalize
     let sessionInterim = '';
+    let lastSentText = '';  // 防止 onend 发送 onresult 已经发过的文本
 
     rec.onresult = (event) => {
       consecutiveErrors = 0;
@@ -50,14 +50,14 @@ const SpeechRecognizer = (() => {
         const result = event.results[i];
         const transcript = result[0].transcript;
         if (result.isFinal) {
-          final += transcript;
+          final = transcript;  // = 不是 +=，避免 Safari 累积旧结果
         } else {
-          // 使用 = 而不是 +=，因为每个 interim result 已包含完整文本
-          interim = transcript;
+          interim = transcript;  // = 不是 +=，interim 已是完整文本
         }
       }
 
       if (interim) sessionInterim = interim;
+      if (final && final.trim()) lastSentText = final.trim();
 
       if (onResultCallback && (final || interim)) {
         onResultCallback({ final, interim });
@@ -85,14 +85,19 @@ const SpeechRecognizer = (() => {
     };
 
     rec.onend = () => {
-      // Safari iOS workaround: isFinal 经常永远为 false
-      // 当 onend 触发时，如果有 pending 的 interim 文本，手动作为 final 发送
+      // Safari iOS workaround: 如果 isFinal 从未触发 (lastSentText 为空 或
+      // 与 sessionInterim 不同), 把最后的 interim 作为 final 发送
       if (isListening && sessionInterim && sessionInterim.trim()) {
-        if (onResultCallback) {
-          onResultCallback({ final: sessionInterim.trim(), interim: '' });
+        const text = sessionInterim.trim();
+        if (text !== lastSentText) {
+          if (onResultCallback) {
+            onResultCallback({ final: text, interim: '' });
+          }
+          lastSentText = text;
         }
       }
       sessionInterim = '';
+      lastSentText = '';
 
       // 自动重启听下一句
       if (isListening) {
