@@ -10,6 +10,7 @@ const App = (() => {
   // === 应用状态 ===
   let currentSpeaker = 'A'; // 'A' | 'B'
   let interimMsgId = null;  // 当前中间结果消息的 ID
+  let lastFinalText = '';  // 上一条最终结果文本，用于去重
 
   // === DOM 引用 ===
   let els = {};
@@ -157,18 +158,25 @@ const App = (() => {
 
     // 处理最终结果
     if (final && final.trim()) {
+      const finalText = final.trim();
+
+      // 去重: 跳过与上次完全相同的最终结果
+      if (finalText === lastFinalText) {
+        return;
+      }
+      lastFinalText = finalText;
+
       if (interimMsgId) {
-        // 已有 interim 气泡 → 更新为最终状态，不创建新气泡
+        // 已有 interim 气泡 → 更新为最终状态
         Storage.finalizeLastMessage();
         UI.finalizeBubble(interimMsgId);
         interimMsgId = null;
       } else {
         // 没有 interim → 直接创建最终消息
-        const msg = Storage.addMessage(currentSpeaker, final.trim(), false);
+        const msg = Storage.addMessage(currentSpeaker, finalText, false);
         UI.appendBubble(msg);
       }
       UI.scrollToBottom();
-      // final 优先: 跳过后续 interim 处理, 避免重复气泡
       return;
     }
 
@@ -244,6 +252,7 @@ const App = (() => {
 
     // 重置状态
     interimMsgId = null;
+    lastFinalText = '';
     currentSpeaker = 'A';
     UI.setActiveSpeaker('A');
     UI.setMainButtonState('idle');

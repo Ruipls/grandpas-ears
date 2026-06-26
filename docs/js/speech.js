@@ -21,6 +21,8 @@ const SpeechRecognizer = (() => {
 
   // 连续识别失败计数（用于断路保护）
   let consecutiveErrors = 0;
+  // 去重: 追踪上一次发送的 final 文本
+  let lastSentFinal = '';
   const MAX_CONSECUTIVE_ERRORS = 5;
 
   /**
@@ -58,7 +60,16 @@ const SpeechRecognizer = (() => {
         }
       }
 
-      if (onResultCallback) {
+      // 去重: 跳过与上次完全相同的最终结果
+      if (final && final.trim() === lastSentFinal) {
+        final = '';
+      }
+      if (final && final.trim()) {
+        lastSentFinal = final.trim();
+      }
+
+      // 即使 final 被去重，interim 结果仍然正常发送
+      if (onResultCallback && (final || interim)) {
         onResultCallback({ final, interim });
       }
     };
