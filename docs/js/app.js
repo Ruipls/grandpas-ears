@@ -155,12 +155,18 @@ const App = (() => {
 
     const { final, interim } = result;
 
-    // 处理最终结果: 固化之前的中间结果, 创建新的最终消息
+    // 处理最终结果
     if (final && final.trim()) {
-      finalizeInterim();
-
-      const msg = Storage.addMessage(currentSpeaker, final.trim(), false);
-      UI.appendBubble(msg);
+      if (interimMsgId) {
+        // 已有 interim 气泡 → 更新为最终状态，不创建新气泡
+        Storage.finalizeLastMessage();
+        UI.finalizeBubble(interimMsgId);
+        interimMsgId = null;
+      } else {
+        // 没有 interim → 直接创建最终消息
+        const msg = Storage.addMessage(currentSpeaker, final.trim(), false);
+        UI.appendBubble(msg);
+      }
       UI.scrollToBottom();
     }
 
