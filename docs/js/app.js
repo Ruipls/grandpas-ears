@@ -10,6 +10,8 @@ const App = (() => {
   // === 应用状态 ===
   let currentSpeaker = 'A'; // 'A' | 'B'
   let interimMsgId = null;  // 当前中间结果消息的 ID
+  let lastCommitted = null; // 最近固化的一句话，用于拦截 iOS Safari 重启回声
+  const DUPLICATE_SUPPRESS_MS = 1600;
 
   // === DOM 引用 ===
   let els = {};
@@ -151,6 +153,42 @@ const App = (() => {
 
   // === 语音结果处理 ===
   // 核心规则: 一句话只对应一个气泡
+  function normalizeSpeechText(text) {
+    return (text || '')
+      .trim()
+      .replace(/\s+/g, '')
+      .replace(/[，。！？、,.!?;；:："“”'‘’]/g, '')
+      .toLowerCase();
+  }
+
+  function rememberCommitted(text) {
+    const normalized = normalizeSpeechText(text);
+    if (!normalized) return;
+    lastCommitted = {
+      speaker: currentSpeaker,
+      text: normalized,
+      at: Date.now()
+    };
+  }
+
+  function isRecentDuplicate(text) {
+    if (!lastCommitted) return false;
+    const normalized = normalizeSpeechText(text);
+    if (!normalized) return false;
+
+    return lastCommitted.speaker === currentSpeaker &&
+      lastCommitted.text === normalized &&
+      Date.now() - lastCommitted.at < DUPLICATE_SUPPRESS_MS;
+  }
+
+  function discardInterim() {
+    if (!interimMsgId) return;
+
+    Storage.removeMessage(interimMsgId);
+    UI.removeBubble(interimMsgId);
+    interimMsgId = null;
+  }
+
   function handleSpeechResult(result) {
     UI.hideWelcome();
 
@@ -160,10 +198,14 @@ const App = (() => {
     if (final && final.trim()) {
       const finalText = final.trim();
 
+      if (isRecentDuplicate(finalText)) {
+        discardInterim();
+        return;
+      }
+
       if (interimMsgId) {
         // 已有 interim 气泡 → 用最终文字更新并固化
-        Storage.updateLastMessage(finalText, false);
-        const updated = Storage.getMessages()[Storage.getMessages().length - 1];
+        const updated = Storage.updateMessage(interimMsgId, finalText, false);
         if (updated) UI.updateBubble(interimMsgId, updated);
         UI.finalizeBubble(interimMsgId);
         interimMsgId = null;
@@ -172,6 +214,7 @@ const App = (() => {
         const msg = Storage.addMessage(currentSpeaker, finalText, false);
         UI.appendBubble(msg);
       }
+      rememberCommitted(finalText);
       UI.scrollToBottom();
       return;
     }
@@ -180,8 +223,13 @@ const App = (() => {
     if (interim && interim.trim()) {
       const interimText = interim.trim();
 
+      if (isRecentDuplicate(interimText)) {
+        discardInterim();
+        return;
+      }
+
       if (interimMsgId) {
-        const msg = Storage.updateLastMessage(interimText, true);
+        const msg = Storage.updateMessage(interimMsgId, interimText, true);
         if (msg) UI.updateBubble(msg.id, msg);
       } else {
         const msg = Storage.addMessage(currentSpeaker, interimText, true);
@@ -197,8 +245,9 @@ const App = (() => {
    */
   function finalizeInterim() {
     if (interimMsgId) {
-      Storage.finalizeLastMessage();
+      const finalized = Storage.finalizeMessage(interimMsgId);
       UI.finalizeBubble(interimMsgId);
+      if (finalized) rememberCommitted(finalized.text);
       interimMsgId = null;
     }
   }
@@ -248,6 +297,7 @@ const App = (() => {
 
     // 重置状态
     interimMsgId = null;
+    lastCommitted = null;
     currentSpeaker = 'A';
     UI.setActiveSpeaker('A');
     UI.setMainButtonState('idle');

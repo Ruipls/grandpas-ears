@@ -78,25 +78,56 @@ const Storage = (() => {
     var messages = getMessages();
     if (messages.length === 0) return null;
     var last = messages[messages.length - 1];
-    last.text = text;
-    last.isInterim = isInterim;
-    last.time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
-    last._ts = Date.now();
-    messages[messages.length - 1] = last;
-    saveMessages(messages);
-    return last;
+    return updateMessage(last.id, text, isInterim);
+  }
+
+  function updateMessage(id, text, isInterim) {
+    if (isInterim === undefined) isInterim = false;
+    var messages = getMessages();
+    for (var i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].id === id) {
+        messages[i].text = text;
+        messages[i].isInterim = isInterim;
+        messages[i].time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+        messages[i]._ts = Date.now();
+        saveMessages(messages);
+        return messages[i];
+      }
+    }
+    return null;
   }
 
   function finalizeLastMessage() {
     var messages = getMessages();
-    if (messages.length === 0) return;
+    if (messages.length === 0) return null;
     var last = messages[messages.length - 1];
-    if (last.isInterim) {
-      last.isInterim = false;
-      last._ts = Date.now();
-      messages[messages.length - 1] = last;
-      saveMessages(messages);
+    return finalizeMessage(last.id);
+  }
+
+  function finalizeMessage(id) {
+    var messages = getMessages();
+    if (messages.length === 0) return null;
+    for (var i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].id === id) {
+        var msg = messages[i];
+        if (msg.isInterim) {
+          msg.isInterim = false;
+          msg._ts = Date.now();
+          messages[i] = msg;
+          saveMessages(messages);
+        }
+        return msg;
+      }
     }
+    return null;
+  }
+
+  function removeMessage(id) {
+    var messages = getMessages();
+    var next = messages.filter(function(m) { return m.id !== id; });
+    if (next.length === messages.length) return false;
+    saveMessages(next);
+    return true;
   }
 
   function clearAll() {
@@ -111,7 +142,10 @@ const Storage = (() => {
     getMessages: getMessages,
     addMessage: addMessage,
     updateLastMessage: updateLastMessage,
+    updateMessage: updateMessage,
     finalizeLastMessage: finalizeLastMessage,
+    finalizeMessage: finalizeMessage,
+    removeMessage: removeMessage,
     clearAll: clearAll,
     getCount: getCount
   };

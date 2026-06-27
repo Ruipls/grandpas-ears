@@ -61,13 +61,13 @@ Phase 2:         声纹识别 → 自动区分说话人  📋 已规划
 
 | 问题 | 状态 | 说明 |
 |------|------|------|
-| **iOS Safari 说完一句话出现两个气泡** | 🔴 待修复 | iOS Safari Web Speech API 的 `isFinal` 不可靠 + `onend` 重复触发。已尝试多层去重（storage/UI/speech.js 层面），问题仍未彻底解决。详见下方 Known Issues |
+| **iOS Safari 说完一句话出现两个气泡** | 🟡 已加修复，需真机复测 | 应用层新增短窗口回声拦截：刚固化的一句话如果被 Safari 重启后的新 session 再次作为 interim/final 返回，会删除临时气泡并跳过重复渲染 |
 | 文字偶有重复拼接 | 🟡 部分修复 | `final =` 替代 `final +=` 后有所改善 |
 | Chrome 部分模型需联网 | 🟡 浏览器限制 | Phase 1 用 whisper.cpp 彻底解决 |
 
 ### 🔜 下一步
 
-1. **修复双重气泡 Bug**：可能需要用 `requestAnimationFrame` 节流或完全重写事件处理
+1. **iOS 真机复测双重气泡修复**：重点测短句、连续两句相同内容、停止/重启
 2. **Phase 1 启动**：PWA 核心交互验证通过后，启动 Flutter + whisper.cpp 端侧推理
 
 ---
@@ -83,18 +83,21 @@ Phase 2:         声纹识别 → 自动区分说话人  📋 已规划
 - `onend` 事件触发时，`onresult` 的 interim 文本被重复作为 final 发送
 - `continuous: true` 模式下事件模型复杂，多个 result 交叉触发
 
-**已尝试的修复**（均未完全解决）：
+**已完成的修复**：
 - `continuous: false` + 手动重启 ✓(部分改善)
 - `onend` 中强制 finalize ✓(部分改善)
 - storage 层去重 (3秒窗口)
 - UI 层去重 (ID 检查)
 - speech.js 层去重 (lastSentText 追踪)
+- app.js 层短窗口回声拦截：拦截重启 session 返回的重复 interim/final，并删除已创建的重复临时气泡
+- Service Worker 升级到 `grandpasears-v3`，网络优先加载静态资源，减少旧脚本缓存干扰
 
-**可能的下一步**：
-- 使用 `requestAnimationFrame` 合并同一帧内的多次渲染
-- 改用 `continuous: false` + 每次重启前完全清理状态
-- 考虑用 MediaRecorder + 后端 ASR 替代 Web Speech API (成本更高)
-- Phase 1 迁移到 whisper.cpp 后自然解决（不再依赖 Web Speech API）
+**复测建议**：
+- iPhone Safari 打开 GitHub Pages 后刷新一次，确保加载新 Service Worker
+- 说一个短句，停顿 1 秒，确认只出现一个气泡
+- 连续说两次完全相同短句，中间停顿超过 2 秒，确认第二句仍会出现
+- 点击停止时确认最后一个临时气泡会固化，不会额外新增
+- Phase 1 迁移到 whisper.cpp 后可彻底摆脱 Web Speech API 的事件不稳定性
 
 ---
 
