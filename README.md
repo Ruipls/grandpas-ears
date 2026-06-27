@@ -117,6 +117,12 @@ python3 -m http.server 3000
 
 > 需要 Chrome 或 Safari 浏览器。iOS Safari 14.5+ 支持。
 
+### 回归测试
+
+```bash
+node tests/app-duplicate-bubbles.test.js
+```
+
 ---
 
 ## 🤝 贡献 Contributing
